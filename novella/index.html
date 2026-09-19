@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Школа — Интерактивная новелла</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: #08080a;
+      color: #eaeaea;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    #game-container {
+      width: 100%;
+      max-width: 860px;
+      background: #121316;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #23262d;
+    }
+
+    /* Игровая сцена */
+    #stage-wrapper {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      background-color: #000000;
+      overflow: hidden;
+    }
+
+    #stage-content {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transition: opacity 0.45s ease-in-out;
+      opacity: 1;
+    }
+
+    /* Оверлей полного затемнения при переходе */
+    #fade-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease-in-out;
+      z-index: 50;
+    }
+
+    /* Персонаж: 100% непрозрачный, без смешивания, отцентрирован */
+    #char-container {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #char-img {
+      max-height: 85%;
+      max-width: 60%;
+      object-fit: contain;
+      opacity: 1;
+      filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.7));
+      transition: transform 0.3s ease;
+    }
+
+    /* Окно диалога внизу сцены */
+    #dialogue-box {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: linear-gradient(180deg, rgba(14, 16, 22, 0.82) 0%, rgba(8, 9, 12, 0.98) 100%);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 16px 24px 20px 24px;
+      backdrop-filter: blur(6px);
+      min-height: 110px;
+    }
+
+    #speaker-tag {
+      display: inline-block;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #60a5fa;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      padding: 2px 8px;
+      background: rgba(96, 165, 250, 0.12);
+      border-left: 3px solid #3b82f6;
+      border-radius: 2px;
+    }
+
+    #story-text {
+      font-size: 1.02rem;
+      line-height: 1.6;
+      color: #f1f5f9;
+      white-space: pre-line;
+    }
+
+    /* Блок кнопок выборов */
+    #button-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 18px 24px;
+      background: #121316;
+      min-height: 90px;
+      transition: opacity 0.3s ease;
+    }
+
+    button.choice-btn {
+      background: #1e222b;
+      color: #f3f4f6;
+      border: 1px solid #333a48;
+      border-radius: 8px;
+      padding: 13px 18px;
+      font-size: 0.98rem;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
+      outline: none;
+    }
+
+    button.choice-btn:hover:not(:disabled) {
+      background-color: #272e3d;
+      border-color: #3b82f6;
+      transform: translateX(4px);
+    }
+
+    button.choice-btn:active:not(:disabled) {
+      transform: scale(0.995);
+    }
+
+    button.choice-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* Скрытая кнопка долгого ожидания */
+    button.secret-btn {
+      background: #2b1822;
+      border-color: #61273e;
+      color: #fbcfe8;
+      animation: fadeInBtn 0.8s ease-in-out;
+    }
+
+    button.secret-btn:hover:not(:disabled) {
+      background: #3b1e2e;
+      border-color: #ec4899;
+    }
+
+    @keyframes fadeInBtn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div id="stage-wrapper">
+    <!-- Слой фона локации и персонажа -->
+    <div id="stage-content">
+      <div id="char-container">
+        <img id="char-img" src="" alt="" style="display: none;">
+      </div>
+
+      <!-- Текстовое диалоговое поле внизу -->
+      <div id="dialogue-box">
+        <div id="speaker-tag">Главный герой</div>
+        <div id="story-text">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Затемняющий экран перехода в чёрный -->
+    <div id="fade-overlay"></div>
+  </div>
+
+  <!-- Контейнер для кнопок выбора -->
+  <div id="button-container"></div>
+</div>
+
+<script>
+  let timerId = null;
+  let isTransitioning = false;
+
+  // База данных сцен и разветвлений
+  const scenes = {
+    start: {
+      location: "loc_room.jpg",
+      charImg: null, // Дома в комнате спрайта нет
+      speaker: "Ты",
+      text: "7:00 утра. Будильник надрывается на всю комнату. Если не встать прямо сейчас, можно опоздать на контрольную.",
+      choices: [
+        { text: "Выключить будильник и пойти в школу", target: "corridor" }
+      ],
+      timeout: {
+        time: 15000,
+        btnText: "Поспать ещё немного...",
+        target: "ending_sleep"
+      }
+    },
+
+    ending_sleep: {
+      location: "loc_room_noon.jpg",
+      charImg: null,
+      speaker: "Ты",
+      text: "Глаза открываются сами собой. За окном вовсю светит солнце, на часах далеко за полдень. Контрольная давно позади, день в школе полностью пропущен.\n\n[ФИНАЛ 0: Сон до обеда]",
+      choices: [
+        { text: "Начать сначала", target: "start" }
+      ]
+    },
+
+    corridor: {
+      location: "loc_corridor.jpg",
+      charImg: "char_hero.png",
+      speaker: "Ты",
+      text: "Ты заходишь в школу прямо перед звонком. Коридор стремительно пустеет. Пора заходить в кабинет физики. Куда сесть?",
+      choices: [
+        { text: "Сесть за первую парту — учиться", target: "front_desk" },
+        { text: "Сесть за последнюю парту — бездельничать", target: "back_desk" }
+      ]
+    },
+
+    front_desk: {
+      location: "loc_physics.jpg",
+      charImg: "char_teacher.png",
+      speaker: "Учитель физики",
+      text: "Ты садишься прямо перед преподавателем. На доске появляются условия контрольной работы. Задачи сложные. Что предпринять?",
+      choices: [
+        { text: "Писать контрольную работу самостоятельно", target: "ending_good" },
+        { text: "Достать шпаргалку", target: "caught_cheat" }
+      ]
+    },
+
+    ending_good: {
+      location: "loc_physics.jpg",
+      charImg: "char_teacher.png",
+      speaker: "Учитель физики",
+      text: "Вспомнив все формулы, ты успеваешь сдать лист до звонка. Учитель проверяет решения: всё выполнено без ошибок. Отличная отметка за четверть обеспечена!\n\n[ФИНАЛ 1: Отличная оценка]",
+      choices: [
+        { text: "Сыграть ещё раз", target: "start" }
+      ]
+    },
+
+    caught_cheat: {
+      location: "loc_principal.jpg",
+      charImg: "char_director.png",
+      speaker: "Директор школы",
+      text: "Учитель замечает шпаргалку, забирает работу и ведёт тебя через коридор прямо в кабинет директора. Директор молча снимает трубку телефона и вызывает твоих родителей.\n\n[ФИНАЛ 2: Вызов родителей]",
+      choices: [
+        { text: "Попробовать снова", target: "start" }
+      ]
+    },
+
+    back_desk: {
+      location: "loc_physics.jpg",
+      charImg: "char_friends.png",
+      speaker: "Одноклассники",
+      text: "Ты плюхаешься на заднюю парту к товарищам. Учитель увлечён чертежами на доске, а впереди ещё целый урок. Чем заняться?",
+      choices: [
+        { text: "Пользоваться телефоном", target: "phone_fail" },
+        { text: "Тихо разговаривать с друзьями", target: "friends_talk" }
+      ]
+    },
+
+    phone_fail: {
+      location: "loc_principal.jpg",
+      charImg: "char_director.png",
+      speaker: "Директор школы",
+      text: "Из динамика телефона внезапно включается звук на максимальную громкость. Учитель немедленно выставляет тебя с урока и отправляет в кабинет директора за срыв занятия.\n\n[ФИНАЛ 3: Разговор у директора]",
+      choices: [
+        { text: "Попробовать снова", target: "start" }
+      ]
+    },
+
+    friends_talk: {
+      location: "loc_corridor.jpg",
+      charImg: "char_friends.png",
+      speaker: "Одноклассники",
+      text: "Урок пролетает за тихими разговорами. Как только звенит спасительный звонок, вы тихонько выходите в коридор и незаметно покидаете школу через запасную дверь.\n\n[ФИНАЛ 4: Успешный уход]",
+      choices: [
+        { text: "Начать сначала", target: "start" }
+      ]
+    }
+  };
+
+  const overlay = document.getElementById("fade-overlay");
+  const stageContent = document.getElementById("stage-content");
+  const charImg = document.getElementById("char-img");
+  const speakerTag = document.getElementById("speaker-tag");
+  const storyText = document.getElementById("story-text");
+  const btnContainer = document.getElementById("button-container");
+
+  // Функция применения состояния сцены
+  function applySceneData(sceneKey) {
+    const scene = scenes[sceneKey];
+
+    // Установка фона
+    stageContent.style.backgroundImage = `url('${scene.location}')`;
+
+    // Отображение спрайта персонажа (100% непрозрачный, без смешивания)
+    if (scene.charImg) {
+      charImg.src = scene.charImg;
+      charImg.style.display = "block";
+    } else {
+      charImg.style.display = "none";
+      charImg.src = "";
+    }
+
+    // Текст и говорящий
+    speakerTag.textContent = scene.speaker;
+    storyText.innerText = scene.text;
+
+    // Генерация кнопок выбора
+    btnContainer.innerHTML = "";
+    scene.choices.forEach(choice => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = choice.text;
+      btn.onclick = () => transitionToScene(choice.target);
+      btnContainer.appendChild(btn);
+    });
+
+    // Таймер ожидания для секретного выбора
+    if (scene.timeout) {
+      timerId = setTimeout(() => {
+        const secretBtn = document.createElement("button");
+        secretBtn.className = "choice-btn secret-btn";
+        secretBtn.textContent = scene.timeout.btnText;
+        secretBtn.onclick = () => transitionToScene(scene.timeout.target);
+        btnContainer.appendChild(secretBtn);
+      }, scene.timeout.time);
+    }
+  }
+
+  // Плавный переход через затемнение (fade to black)
+  function transitionToScene(targetKey) {
+    if (isTransitioning) return;
+    isTransitioning = true;
+
+    // Сбрасываем активный таймер ожидания при переходе
+    if (timerId) {
+      clearTimeout(timerId);
+      timerId = null;
+    }
+
+    // Блокируем кнопки на время анимации
+    const buttons = btnContainer.querySelectorAll("button");
+    buttons.forEach(btn => btn.disabled = true);
+
+    // Шаг 1: Полное затемнение экрана
+    overlay.style.opacity = "1";
+
+    setTimeout(() => {
+      // Шаг 2: В полной темноте обновляем данные
+      applySceneData(targetKey);
+
+      // Шаг 3: Плавный выход из темноты
+      setTimeout(() => {
+        overlay.style.opacity = "0";
+        isTransitioning = false;
+      }, 50);
+    }, 400);
+  }
+
+  // Первоначальный запуск игры
+  applySceneData("start");
+</script>
+
+</body>
+</html>
